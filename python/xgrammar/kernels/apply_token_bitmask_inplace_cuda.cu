@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
@@ -17,10 +18,10 @@
 
 // clang-format off
 #include <cuda_bf16.h>
-#include <cuda_fp16.h>
-#include <cuda_runtime.h>
+#include <hip/hip_fp16.h>
+#include <hip/hip_runtime.h>
 #include <torch/extension.h>
-#include <ATen/cuda/CUDAContext.h>
+#include <ATen/cuda/HIPContext.h>
 // clang-format on
 
 #ifndef CUDART_INF_FP16
@@ -45,7 +46,7 @@ __device__ __half NegativeInfinity<__half>() {
 }
 
 template <>
-__device__ __nv_bfloat16 NegativeInfinity<__nv_bfloat16>() {
+__device__ hip_bfloat16 NegativeInfinity<hip_bfloat16>() {
   return -CUDART_INF_BF16;
 }
 
@@ -133,7 +134,7 @@ void ApplyTokenBitmaskInplaceDispatchToBitsPerThread(
       CeilDiv(vocab_size, THREADS_PER_THREAD_BLOCK * num_blocks_per_row);
 
   const dim3 block(THREADS_PER_THREAD_BLOCK);
-  cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+  hipStream_t stream = at::cuda::getCurrentCUDAStream().stream();
 
   if (num_bits_per_thread <= 4 && kAlignment <= 4) {
     const dim3 grid(CeilDiv(vocab_size, THREADS_PER_THREAD_BLOCK * 4), num_rows);
@@ -258,7 +259,7 @@ void ApplyTokenBitmaskInplace(
     }
     case torch::kBFloat16: {
       ApplyTokenBitmaskInplaceDispatchToPackedT(
-          reinterpret_cast<__nv_bfloat16*>(logits.data_ptr<torch::BFloat16>()),
+          reinterpret_cast<hip_bfloat16*>(logits.data_ptr<torch::BFloat16>()),
           bitmask.data_ptr<int32_t>(),
           indices_ptr,
           vocab_size,
